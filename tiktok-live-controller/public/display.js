@@ -1528,7 +1528,7 @@ socket.on('set-beauty', (data, ack) => {
       if (beautyParams[key] !== undefined && sliders[key]) {
         beautyParams[key] = data[key];
         sliders[key].value = data[key];
-        valLabels[key].textContent = data[key] + '%';
+        valLabels[key].textContent = key === 'temp' ? data[key] : data[key] + '%';
       }
     });
     if (ack) ack({ ok: true });
