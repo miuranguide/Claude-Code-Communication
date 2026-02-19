@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>配信画面 - TikTok Live Controller</title>
+  <link rel="stylesheet" href="/display.css">
+</head>
+<body>
+  <!-- ========== 入室画面 ========== -->
+  <div id="join-screen" class="screen active">
+    <div class="join-container">
+      <div class="join-icon">📱</div>
+      <h1>配信画面</h1>
+      <p class="join-desc">ルームIDを入力して接続</p>
+      <input type="text" id="room-input" placeholder="ルームID" autocomplete="off">
+      <button id="join-btn" class="btn-join">Live配信を開始</button>
+      <p id="join-error" class="error-text"></p>
+    </div>
+  </div>
+
+  <!-- ========== チェックリスト ========== -->
+  <div id="checklist-screen" class="screen">
+    <div class="checklist-container">
+      <h2>配信準備</h2>
+      <div class="checklist-items">
+        <label class="check-item">
+          <input type="checkbox" class="check-input" data-check="dnd">
+          <span class="check-mark"></span>
+          <div class="check-text">
+            <strong>おやすみモードON</strong>
+            <span>通知が配信に映らないようにする</span>
+          </div>
+        </label>
+        <label class="check-item">
+          <input type="checkbox" class="check-input" data-check="brightness">
+          <span class="check-mark"></span>
+          <div class="check-text">
+            <strong>画面の明るさ最大</strong>
+            <span>映像が暗くならないようにする</span>
+          </div>
+        </label>
+        <label class="check-item">
+          <input type="checkbox" class="check-input" data-check="rotation">
+          <span class="check-mark"></span>
+          <div class="check-text">
+            <strong>自動回転OFF</strong>
+            <span>画面が回転しないようにする</span>
+          </div>
+        </label>
+        <label class="check-item">
+          <input type="checkbox" class="check-input" data-check="battery">
+          <span class="check-mark"></span>
+          <div class="check-text">
+            <strong>充電ケーブル接続</strong>
+            <span>バッテリー切れを防ぐ</span>
+          </div>
+        </label>
+        <label class="check-item">
+          <input type="checkbox" class="check-input" data-check="wifi">
+          <span class="check-mark"></span>
+          <div class="check-text">
+            <strong>Wi-Fi接続確認</strong>
+            <span>映像の途切れを防ぐ</span>
+          </div>
+        </label>
+        <label class="check-item">
+          <input type="checkbox" class="check-input" data-check="volume">
+          <span class="check-mark"></span>
+          <div class="check-text">
+            <strong>端末の音量UP</strong>
+            <span>BGMが配信に乗るようにする</span>
+          </div>
+        </label>
+      </div>
+      <button id="checklist-done-btn" class="btn-join" disabled>準備完了</button>
+      <button id="checklist-skip-btn" class="btn-skip">スキップ</button>
+    </div>
+  </div>
+
+  <!-- ========== 配信画面 (TikTok Live風) ========== -->
+  <div id="display-screen" class="screen">
+    <!-- 再接続バナー (1.2) -->
+    <div id="reconnect-banner" class="reconnect-banner hidden">再接続中...</div>
+
+    <!-- カメラ映像（非表示） -->
+    <video id="camera-video" autoplay playsinline muted></video>
+    <canvas id="jeeliz-canvas" width="320" height="240"></canvas>
+    <canvas id="beauty-canvas"></canvas>
+
+    <!-- TikTok風 上部バー -->
+    <div id="top-bar">
+      <div class="live-badge">LIVE</div>
+      <div class="top-info">
+        <span id="room-label">---</span>
+        <span id="connection-status" class="conn-dot">●</span>
+      </div>
+      <div id="face-status-badge">顔検出</div>
+    </div>
+
+    <!-- 動画オーバーレイ レイヤー0 (2.2) -->
+    <div id="video-overlay-0" class="video-overlay-layer">
+      <video id="overlay-video-0" class="overlay-video" playsinline></video>
+    </div>
+    <!-- 動画オーバーレイ レイヤー1 (2.2) -->
+    <div id="video-overlay-1" class="video-overlay-layer">
+      <video id="overlay-video-1" class="overlay-video" playsinline></video>
+    </div>
+    <!-- 動画オーバーレイ レイヤー2 (2.2) -->
+    <div id="video-overlay-2" class="video-overlay-layer">
+      <video id="overlay-video-2" class="overlay-video" playsinline></video>
+    </div>
+
+    <!-- 音声プレーヤー（非表示） -->
+    <div id="audio-players"></div>
+
+    <!-- TikTok風 右サイドボタン -->
+    <div id="side-buttons">
+      <button id="beauty-toggle" class="side-btn">
+        <span class="side-icon">✨</span>
+        <span class="side-label">美顔</span>
+      </button>
+      <button id="flip-btn" class="side-btn">
+        <span class="side-icon">🔄</span>
+        <span class="side-label">切替</span>
+      </button>
+    </div>
+
+    <!-- TikTok風 美顔パネル -->
+    <div id="beauty-panel" class="hidden">
+      <div class="panel-handle"></div>
+      <div class="panel-tabs">
+        <button class="panel-tab active" data-panel="filter">美顔</button>
+        <button class="panel-tab" data-panel="colorfilter">フィルター</button>
+        <button class="panel-tab" data-panel="ai">AI検出</button>
+        <button class="panel-tab" data-panel="camera">カメラ</button>
+      </div>
+
+      <!-- 美顔タブ -->
+      <div id="panel-filter" class="panel-content active">
+        <div class="effect-icons">
+          <button class="effect-btn" data-preset="off"><div class="effect-circle">OFF</div><span>なし</span></button>
+          <button class="effect-btn" data-preset="natural"><div class="effect-circle active-effect">N</div><span>ナチュラル</span></button>
+          <button class="effect-btn" data-preset="standard"><div class="effect-circle">S</div><span>標準</span></button>
+          <button class="effect-btn" data-preset="max"><div class="effect-circle">M</div><span>最大</span></button>
+          <button class="effect-btn" data-preset="korean"><div class="effect-circle">K</div><span>韓国風</span></button>
+          <button class="effect-btn" data-preset="gal"><div class="effect-circle">G</div><span>ギャル</span></button>
+        </div>
+        <div class="beauty-subcats">
+          <button class="beauty-subcat active" data-subcat="skin">スキン</button>
+          <button class="beauty-subcat" data-subcat="reshape">リシェイプ</button>
+          <button class="beauty-subcat" data-subcat="makeup">メイク</button>
+        </div>
+        <div id="subcat-skin" class="subcat-content active">
+          <div class="slider-section">
+            <div class="filter-row"><span>美肌</span><input type="range" id="smooth-level" min="0" max="100" value="50"><span id="smooth-val">50</span></div>
+            <div class="filter-row"><span>美白</span><input type="range" id="bright-level" min="0" max="100" value="30"><span id="bright-val">30</span></div>
+            <div class="filter-row"><span>グロー</span><input type="range" id="glow-level" min="0" max="100" value="20"><span id="glow-val">20</span></div>
+          </div>
+        </div>
+        <div id="subcat-reshape" class="subcat-content">
+          <div class="slider-section">
+            <div class="filter-row"><span>デカ目</span><input type="range" id="eye-level" min="0" max="100" value="15"><span id="eye-val">15</span></div>
+            <div class="filter-row"><span>小顔</span><input type="range" id="face-level" min="0" max="100" value="10"><span id="face-val">10</span></div>
+            <div class="filter-row"><span>あご</span><input type="range" id="chin-level" min="0" max="100" value="0"><span id="chin-val">0</span></div>
+            <div class="filter-row"><span>エラ</span><input type="range" id="jaw-level" min="0" max="100" value="0"><span id="jaw-val">0</span></div>
+            <div class="filter-row"><span>鼻筋</span><input type="range" id="nose-level" min="0" max="100" value="0"><span id="nose-val">0</span></div>
+            <div class="filter-row"><span>口</span><input type="range" id="mouth-level" min="0" max="100" value="0"><span id="mouth-val">0</span></div>
+            <div class="filter-row"><span>面長</span><input type="range" id="facelen-level" min="0" max="100" value="0"><span id="facelen-val">0</span></div>
+          </div>
+        </div>
+        <div id="subcat-makeup" class="subcat-content">
+          <div class="slider-section">
+            <div class="filter-row"><span>チーク</span><input type="range" id="blush-level" min="0" max="100" value="0"><span id="blush-val">0</span></div>
+            <div class="filter-row"><span>リップ</span><input type="range" id="lip-level" min="0" max="100" value="0"><span id="lip-val">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- フィルタータブ -->
+      <div id="panel-colorfilter" class="panel-content">
+        <div class="color-filter-grid">
+          <button class="cf-btn selected" data-filter="none"><div class="cf-circle" style="background:#333"></div><span>なし</span></button>
+          <button class="cf-btn" data-filter="natural"><div class="cf-circle" style="background:linear-gradient(135deg,#d4a574,#f5deb3)"></div><span>ナチュラル</span></button>
+          <button class="cf-btn" data-filter="clear"><div class="cf-circle" style="background:linear-gradient(135deg,#a0d8ef,#d4f1f9)"></div><span>クリア</span></button>
+          <button class="cf-btn" data-filter="peach"><div class="cf-circle" style="background:linear-gradient(135deg,#f4a6a0,#fdd5b1)"></div><span>ピーチ</span></button>
+          <button class="cf-btn" data-filter="sunshine"><div class="cf-circle" style="background:linear-gradient(135deg,#f5c842,#f5a623)"></div><span>日差し</span></button>
+          <button class="cf-btn" data-filter="spring"><div class="cf-circle" style="background:linear-gradient(135deg,#a8e6cf,#dcedc1)"></div><span>春</span></button>
+          <button class="cf-btn" data-filter="retro"><div class="cf-circle" style="background:linear-gradient(135deg,#c9b18c,#8b7355)"></div><span>レトロ</span></button>
+          <button class="cf-btn" data-filter="cinema"><div class="cf-circle" style="background:linear-gradient(135deg,#2c3e50,#4a6fa5)"></div><span>シネマ</span></button>
+          <button class="cf-btn" data-filter="mono"><div class="cf-circle" style="background:linear-gradient(135deg,#666,#aaa)"></div><span>モノクロ</span></button>
+          <button class="cf-btn" data-filter="pink"><div class="cf-circle" style="background:linear-gradient(135deg,#ff9a9e,#fecfef)"></div><span>ピンク</span></button>
+          <button class="cf-btn" data-filter="paris"><div class="cf-circle" style="background:linear-gradient(135deg,#e8d5e0,#c4a4b8)"></div><span>パリ</span></button>
+          <button class="cf-btn" data-filter="tokyo"><div class="cf-circle" style="background:linear-gradient(135deg,#4a90d9,#2c3e50)"></div><span>東京</span></button>
+        </div>
+        <div class="slider-section" style="margin-top:12px">
+          <div class="filter-row"><span>強度</span><input type="range" id="filter-intensity" min="0" max="100" value="100"><span id="filter-intensity-val">100%</span></div>
+        </div>
+      </div>
+
+      <!-- AI顔検出タブ -->
+      <div id="panel-ai" class="panel-content">
+        <p class="ai-desc">顔検出エンジンを選択。MediaPipe推奨（468点の高精度ランドマーク）</p>
+        <div class="engine-cards">
+          <button class="engine-card" data-engine="basic">
+            <div class="engine-icon">📷</div>
+            <div class="engine-name">基本</div>
+            <div class="engine-detail">推定・軽量</div>
+          </button>
+          <button class="engine-card" data-engine="jeeliz">
+            <div class="engine-icon">🇫🇷</div>
+            <div class="engine-name">jeeliz</div>
+            <div class="engine-detail">フランス製</div>
+          </button>
+          <button class="engine-card selected" data-engine="mediapipe">
+            <div class="engine-icon">🇺🇸</div>
+            <div class="engine-name">MediaPipe</div>
+            <div class="engine-detail">Google・高精度</div>
+          </button>
+        </div>
+        <div id="engine-status" class="engine-status">MediaPipe (Google) 使用中</div>
+      </div>
+
+      <!-- カメラタブ -->
+      <div id="panel-camera" class="panel-content">
+        <div class="slider-section">
+          <div class="filter-row"><span>ズーム</span><input type="range" id="zoom-level" min="5" max="30" value="10" step="1"><span id="zoom-val">1.0x</span></div>
+          <div class="filter-row"><span>色温度</span><input type="range" id="temp-level" min="-50" max="50" value="0"><span id="temp-val">0</span></div>
+          <div class="filter-row"><span>質感</span><input type="range" id="sharp-level" min="0" max="100" value="0"><span id="sharp-val">0</span></div>
+          <div class="filter-row"><span>暗角</span><input type="range" id="vignette-level" min="0" max="100" value="0"><span id="vignette-val">0</span></div>
+        </div>
+      </div>
+
+      <button id="beauty-close-btn" class="panel-close">閉じる</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/display.js"></script>
+</body>
+</html>

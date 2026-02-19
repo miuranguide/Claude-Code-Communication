@@ -1,0 +1,6 @@
+node_modules/
+media/videos/
+media/audio/
+media/thumbs/
+media/config.json
+*.pem

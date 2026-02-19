@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>コントローラー - TikTok Live Controller</title>
+  <link rel="stylesheet" href="/controller.css">
+</head>
+<body>
+  <!-- Toast通知コンテナ (1.1) -->
+  <div id="toast-container"></div>
+
+  <!-- 再接続バナー (1.2) -->
+  <div id="reconnect-banner" class="reconnect-banner hidden">再接続中...</div>
+
+  <!-- ========== 入室画面 ========== -->
+  <div id="join-screen" class="screen active">
+    <div class="join-container">
+      <div class="join-icon">🎮</div>
+      <h1>コントローラー (Device B)</h1>
+      <p class="join-desc">配信画面と同じルームIDで接続</p>
+      <input type="text" id="room-input" placeholder="ルームID（例: room1）" autocomplete="off">
+      <button id="join-btn" class="btn-primary">接続する</button>
+      <p id="join-error" class="error-text"></p>
+    </div>
+  </div>
+
+  <!-- ========== コントローラー画面 ========== -->
+  <div id="controller-screen" class="screen">
+    <!-- ヘッダー -->
+    <header id="header">
+      <div class="header-left">
+        <span id="room-label">Room: ---</span>
+        <span id="connection-status" class="status-dot disconnected">●</span>
+      </div>
+      <div class="header-right">
+        <button id="stop-all-btn" class="btn-stop-all">⏹ 全停止</button>
+      </div>
+    </header>
+
+    <!-- プレビュー（タッチ操作可能） -->
+    <div id="preview-area">
+      <img id="preview-img" src="" alt="">
+      <canvas id="preview-overlay"></canvas>
+      <span id="preview-placeholder">配信プレビュー</span>
+      <span id="preview-hint" class="hidden">ドラッグ:移動 ピンチ:サイズ</span>
+      <span id="preview-edit-hint">指でドラッグ:移動 / ピンチ:拡大縮小</span>
+    </div>
+
+    <!-- タブ切替 -->
+    <nav id="tabs">
+      <button class="tab active" data-tab="videos">🎬 動画</button>
+      <button class="tab" data-tab="audio">🎵 音楽</button>
+      <button class="tab" data-tab="settings">⚙️ 管理</button>
+    </nav>
+
+    <!-- ========== 動画タブ ========== -->
+    <div id="tab-videos" class="tab-content active">
+      <div class="video-tab-header">
+        <!-- レイヤー選択 (2.2) -->
+        <div class="layer-selector">
+          <button class="layer-btn selected" data-layer="0">L1</button>
+          <button class="layer-btn" data-layer="1">L2</button>
+          <button class="layer-btn" data-layer="2">L3</button>
+        </div>
+        <button id="edit-mode-btn" class="edit-mode-toggle">📐 配置設定</button>
+      </div>
+
+      <!-- ループ & トランジション (2.4, 2.5) -->
+      <div class="video-options-bar">
+        <button id="loop-toggle-btn" class="option-chip">🔁 ループ</button>
+        <select id="transition-select" class="option-select">
+          <option value="none">トランジション: なし</option>
+          <option value="fadeIn">フェードイン</option>
+          <option value="slideIn">スライドイン</option>
+          <option value="scaleIn">スケールイン</option>
+        </select>
+        <!-- 透明度 (2.3) -->
+        <label class="opacity-label">透明度:<input type="range" id="layer-opacity" min="0" max="100" value="100" class="opacity-slider"><span id="opacity-val">100%</span></label>
+      </div>
+
+      <div id="video-grid"></div>
+      <p id="video-empty" class="empty-msg hidden">動画がありません。管理タブからアップロードしてください。</p>
+
+      <!-- オーバーレイプリセット (1.6) -->
+      <div class="preset-section">
+        <div class="preset-chips" id="preset-chips"></div>
+        <button id="preset-save-btn" class="preset-save-btn">💾 現在の設定をプリセット保存</button>
+      </div>
+    </div>
+
+    <!-- ========== 音楽タブ ========== -->
+    <div id="tab-audio" class="tab-content">
+      <div id="audio-grid"></div>
+      <p id="audio-empty" class="empty-msg hidden">音楽がありません。管理タブからアップロードしてください。</p>
+
+      <!-- マスター音量 -->
+      <div class="control-section">
+        <h3>マスター音量</h3>
+        <div class="slider-group">
+          <label>音量: <span id="master-vol-val">80%</span></label>
+          <input type="range" id="master-volume" min="0" max="100" value="80">
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 管理タブ ========== -->
+    <div id="tab-settings" class="tab-content">
+      <!-- アップロード -->
+      <div class="settings-section">
+        <h3>📤 メディアアップロード</h3>
+        <div class="upload-area" id="upload-area">
+          <input type="file" id="file-input" accept="video/*,audio/*" hidden>
+          <button id="upload-btn" class="btn-upload">ファイルを選択</button>
+          <p class="upload-hint">動画 (mp4等) または音声 (mp3等) 50MBまで</p>
+          <div id="upload-progress" class="hidden">
+            <div class="progress-bar"><div id="progress-fill"></div></div>
+            <span id="upload-status">アップロード中...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- メディア一覧 -->
+      <div class="settings-section">
+        <h3>🎬 動画一覧</h3>
+        <div id="video-list" class="media-list"></div>
+      </div>
+      <div class="settings-section">
+        <h3>🎵 音楽一覧</h3>
+        <div id="audio-list" class="media-list"></div>
+      </div>
+
+      <!-- タイマー/スケジューラ (2.6) -->
+      <div class="settings-section">
+        <h3>⏱ タイマー再生</h3>
+        <div class="timer-form">
+          <select id="timer-video-select" class="timer-select"><option value="">動画を選択...</option></select>
+          <div class="timer-row">
+            <label>遅延(秒): <input type="number" id="timer-delay" value="5" min="1" max="3600" class="timer-input"></label>
+            <label><input type="checkbox" id="timer-repeat"> 繰返し</label>
+          </div>
+          <button id="timer-add-btn" class="btn-save" style="padding:8px 16px;font-size:0.8rem">追加</button>
+        </div>
+        <div id="timer-list" class="timer-list"></div>
+      </div>
+
+      <!-- 接続情報 -->
+      <div class="settings-section">
+        <h3>📡 接続情報</h3>
+        <div id="connection-info">
+          <p>ルーム: <strong id="info-room">---</strong></p>
+          <p>配信画面: <strong id="info-displays">0台</strong></p>
+          <p>コントローラー: <strong id="info-controllers">0台</strong></p>
+        </div>
+      </div>
+
+      <!-- キーボードショートカット (1.5) -->
+      <div class="settings-section">
+        <h3>⌨️ ショートカット</h3>
+        <div class="shortcut-list">
+          <p><kbd>Space</kbd> 全停止</p>
+          <p><kbd>M</kbd> ミュート</p>
+          <p><kbd>1</kbd>-<kbd>9</kbd> 動画再生</p>
+          <p><kbd>Ctrl+Z</kbd> Undo</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- オーバーレイ設定モーダル -->
+  <div id="overlay-modal" class="modal hidden">
+    <div class="modal-content">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <h3 style="margin:0;font-size:0.9rem">📐 <span id="overlay-target-name"></span></h3>
+        <span style="color:#4caf50;font-size:0.65rem">配信画面テスト表示中</span>
+      </div>
+      <div class="overlay-form">
+        <div class="overlay-quick-btns">
+          <button class="opos-btn" data-pos="top-left">左上</button>
+          <button class="opos-btn" data-pos="top-right">右上</button>
+          <button class="opos-btn" data-pos="center">中央</button>
+          <button class="opos-btn" data-pos="bottom-left">左下</button>
+          <button class="opos-btn" data-pos="bottom-right">右下</button>
+          <button class="opos-btn" data-pos="full">全画面</button>
+        </div>
+        <label>サイズ: <span id="overlay-size-preview">70%</span></label>
+        <input type="range" id="overlay-size-input" min="10" max="100" value="70">
+      </div>
+      <div class="modal-actions">
+        <button id="overlay-cancel" class="btn-cancel">キャンセル</button>
+        <button id="overlay-save" class="btn-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 名称変更モーダル -->
+  <div id="rename-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>名称変更</h3>
+      <input type="text" id="rename-input" placeholder="新しい名前">
+      <div class="modal-actions">
+        <button id="rename-cancel" class="btn-cancel">キャンセル</button>
+        <button id="rename-save" class="btn-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/controller.js"></script>
+</body>
+</html>

@@ -1,0 +1,577 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #000;
+  color: #fff;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.screen { display: none; width: 100%; height: 100%; }
+.screen.active { display: flex; }
+.hidden { display: none !important; }
+
+/* ========== 入室画面 ========== */
+#join-screen {
+  background: linear-gradient(180deg, #1a1a2e 0%, #0a0a14 100%);
+  align-items: center;
+  justify-content: center;
+}
+
+.join-container { text-align: center; padding: 20px; }
+.join-icon { font-size: 3.5rem; margin-bottom: 12px; }
+.join-container h1 { font-size: 1.5rem; margin-bottom: 6px; }
+.join-desc { color: #888; margin-bottom: 20px; font-size: 0.85rem; }
+
+#room-input {
+  display: block;
+  width: 280px;
+  margin: 0 auto 14px;
+  padding: 14px 16px;
+  font-size: 1.1rem;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  text-align: center;
+  outline: none;
+}
+#room-input::placeholder { color: #666; }
+#room-input:focus { background: rgba(255,255,255,0.15); }
+
+.btn-join {
+  display: block;
+  width: 280px;
+  margin: 0 auto;
+  padding: 14px;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  background: #fe2c55;
+  color: #fff;
+  cursor: pointer;
+}
+.btn-join:active { background: #d92548; }
+.btn-join:disabled { background: #333; color: #666; }
+
+.error-text { color: #fe2c55; margin-top: 10px; font-size: 0.8rem; min-height: 1em; }
+
+/* ========== チェックリスト ========== */
+#checklist-screen {
+  background: linear-gradient(180deg, #1a1a2e 0%, #0a0a14 100%);
+  align-items: center;
+  justify-content: flex-start;
+  overflow-y: auto;
+}
+
+.checklist-container { width: 100%; max-width: 360px; padding: 40px 20px 20px; }
+.checklist-container h2 { font-size: 1.2rem; margin-bottom: 16px; text-align: center; }
+
+.check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  margin-bottom: 6px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.check-item:has(.check-input:checked) {
+  border-color: rgba(76,175,80,0.4);
+  background: rgba(76,175,80,0.05);
+}
+
+.check-input { display: none; }
+.check-mark {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #444;
+  border-radius: 50%;
+  margin-top: 1px;
+}
+.check-input:checked + .check-mark {
+  background: #4caf50;
+  border-color: #4caf50;
+}
+.check-input:checked + .check-mark::after {
+  content: '\2713';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: bold;
+  height: 100%;
+}
+
+.check-text strong { display: block; font-size: 0.85rem; }
+.check-text span { font-size: 0.7rem; color: #777; }
+
+.btn-skip {
+  display: block;
+  width: 280px;
+  margin: 8px auto 0;
+  padding: 8px;
+  font-size: 0.8rem;
+  border: none;
+  background: transparent;
+  color: #555;
+  cursor: pointer;
+}
+
+/* ========== 再接続バナー (1.2) ========== */
+.reconnect-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: #ff9800;
+  color: #000;
+  text-align: center;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  animation: reconnectPulse 1.5s infinite;
+}
+.reconnect-banner.failed {
+  background: #f44336;
+  color: #fff;
+  animation: none;
+}
+@keyframes reconnectPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ========== 配信画面 (TikTok Live風) ========== */
+#display-screen {
+  position: relative;
+  flex-direction: column;
+  background: #000;
+}
+
+#camera-video {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0; z-index: -1;
+}
+#jeeliz-canvas {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0; z-index: -1;
+}
+
+#beauty-canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+
+/* TikTok風 上部バー */
+#top-bar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-badge {
+  background: #fe2c55;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+
+.top-info {
+  background: rgba(0,0,0,0.5);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.conn-dot { font-size: 0.5rem; color: #888; }
+.conn-dot.connected { color: #4caf50; }
+.conn-dot.disconnected { color: #fe2c55; }
+
+#face-status-badge {
+  margin-left: auto;
+  background: rgba(0,0,0,0.5);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 0.65rem;
+  color: #888;
+}
+
+/* ========== 動画オーバーレイ レイヤー (2.2) ========== */
+.video-overlay-layer {
+  position: absolute;
+  display: none;
+  top: 15%; left: 15%;
+  width: 70%; height: 70%;
+}
+.video-overlay-layer[data-layer="0"] { z-index: 10; }
+.video-overlay-layer[data-layer="1"] { z-index: 11; }
+.video-overlay-layer[data-layer="2"] { z-index: 12; }
+#video-overlay-0 { z-index: 10; }
+#video-overlay-1 { z-index: 11; }
+#video-overlay-2 { z-index: 12; }
+.video-overlay-layer.active { display: block; }
+.overlay-video {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+/* ========== トランジションアニメーション (2.5) ========== */
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes overlayFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes overlaySlideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes overlaySlideOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(-100%); opacity: 0; }
+}
+@keyframes overlayScaleIn {
+  from { transform: scale(0.3); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes overlayScaleOut {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(0.3); opacity: 0; }
+}
+
+.transition-fadeIn { animation: overlayFadeIn 0.4s ease-out forwards; }
+.transition-fadeOut { animation: overlayFadeOut 0.3s ease-in forwards; }
+.transition-slideIn { animation: overlaySlideIn 0.4s ease-out forwards; }
+.transition-slideOut { animation: overlaySlideOut 0.3s ease-in forwards; }
+.transition-scaleIn { animation: overlayScaleIn 0.4s ease-out forwards; }
+.transition-scaleOut { animation: overlayScaleOut 0.3s ease-in forwards; }
+
+#audio-players {
+  position: absolute;
+  z-index: 5;
+  width: 0; height: 0;
+  overflow: hidden;
+}
+
+/* TikTok風 右サイドボタン */
+#side-buttons {
+  position: absolute;
+  right: 10px;
+  bottom: 180px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.side-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+.side-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+}
+
+.side-label {
+  font-size: 0.6rem;
+  color: #ccc;
+}
+
+/* TikTok風 美顔パネル */
+#beauty-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 300;
+  background: rgba(22, 24, 35, 0.97);
+  border-radius: 12px 12px 0 0;
+  padding: 8px 16px 30px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.panel-handle {
+  width: 36px;
+  height: 4px;
+  background: #444;
+  border-radius: 2px;
+  margin: 0 auto 10px;
+}
+
+.panel-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #333;
+}
+
+.panel-tab {
+  flex: 1;
+  padding: 8px;
+  font-size: 0.85rem;
+  border: none;
+  background: none;
+  color: #888;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.panel-tab.active {
+  color: #fff;
+  border-bottom-color: #fe2c55;
+}
+
+.panel-content { display: none; }
+.panel-content.active { display: block; }
+
+/* エフェクトアイコン（TikTok風） */
+.effect-icons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 4px 0;
+}
+
+.effect-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 0.65rem;
+  min-width: 56px;
+}
+
+.effect-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #aaa;
+  background: rgba(255,255,255,0.05);
+}
+
+.effect-circle.active-effect {
+  border-color: #fe2c55;
+  color: #fe2c55;
+}
+
+/* フィルタースライダー */
+.slider-section { padding: 0 4px; }
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+}
+
+.filter-row span:first-child {
+  width: 42px;
+  flex-shrink: 0;
+  color: #aaa;
+}
+
+.filter-row span:last-child {
+  width: 28px;
+  flex-shrink: 0;
+  text-align: right;
+  color: #888;
+  font-size: 0.7rem;
+}
+
+.filter-row input[type="range"] {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  background: #333;
+  border-radius: 2px;
+  outline: none;
+}
+
+.filter-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fe2c55;
+  cursor: pointer;
+}
+
+/* AI顔検出タブ */
+.ai-desc {
+  font-size: 0.7rem;
+  color: #666;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.engine-cards {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.engine-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 6px;
+  border: 2px solid #333;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  color: #aaa;
+  cursor: pointer;
+}
+.engine-card.selected {
+  border-color: #fe2c55;
+  color: #fff;
+  background: rgba(254,44,85,0.08);
+}
+.engine-card.loading {
+  border-color: #ff9800;
+  opacity: 0.7;
+}
+.engine-card:active { background: rgba(255,255,255,0.08); }
+
+.engine-icon { font-size: 1.4rem; }
+.engine-name { font-size: 0.8rem; font-weight: bold; }
+.engine-detail { font-size: 0.6rem; color: #888; }
+.engine-card.selected .engine-detail { color: #aaa; }
+
+.engine-status {
+  text-align: center;
+  font-size: 0.7rem;
+  color: #4caf50;
+  min-height: 1.4em;
+}
+
+/* サブカテゴリ（スキン/リシェイプ/メイク） */
+.beauty-subcats {
+  display: flex;
+  gap: 0;
+  margin-bottom: 10px;
+}
+
+.beauty-subcat {
+  flex: 1;
+  padding: 6px;
+  font-size: 0.75rem;
+  border: none;
+  background: none;
+  color: #666;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  text-align: center;
+}
+.beauty-subcat.active {
+  color: #fff;
+  border-bottom-color: #fe2c55;
+}
+
+.subcat-content { display: none; }
+.subcat-content.active { display: block; }
+
+/* カラーフィルターグリッド */
+.color-filter-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.cf-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 0.6rem;
+  min-width: 52px;
+}
+
+.cf-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+.cf-btn.selected .cf-circle {
+  border-color: #fe2c55;
+}
+
+.panel-close {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  color: #aaa;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
