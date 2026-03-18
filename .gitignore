@@ -29,6 +29,13 @@ Thumbs.db
 **/.pub/
 **/pubspec.lock
 
+# Node
+node_modules/
+package-lock.json
+
+# Certificates
+*.pem
+
 # APK artifacts
 *.apk
 *.zip

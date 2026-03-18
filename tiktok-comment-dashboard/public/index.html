@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TikTok Comment Dashboard</title>
+  <link rel="stylesheet" href="/dashboard.css">
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <header class="header">
+    <div class="header-left">
+      <span class="header-title">💬 TikTok Comment Dashboard</span>
+    </div>
+    <div class="header-stats">
+      <span>総コメント: <span class="stat-val" id="stat-total">0</span></span>
+      <span>ユーザー: <span class="stat-val" id="stat-users">0</span></span>
+      <span>/分: <span class="stat-val" id="stat-cpm">0</span></span>
+      <button class="btn btn-clear" id="clear-btn">全履歴クリア</button>
+    </div>
+  </header>
+
+  <!-- ===== 5画面横並び（各画面+コメント欄） ===== -->
+  <div class="slots-row">
+
+    <!-- スロット1 -->
+    <div class="slot-column" data-slot="0">
+      <div class="slot-card">
+        <div class="slot-header">
+          <span class="slot-number">1</span>
+          <span class="slot-status-dot disconnected"></span>
+          <span class="slot-hype" title="盛り上がり度">--</span>
+          <span class="slot-viewers"></span>
+        </div>
+        <div class="slot-body">
+          <div class="slot-info">
+            <span class="slot-username inactive">未接続</span>
+          </div>
+          <div class="slot-connect-form">
+            <input type="text" class="slot-input" placeholder="@username" data-slot="0">
+            <button class="btn btn-slot-connect" data-slot="0">接続</button>
+            <button class="btn btn-slot-disconnect hidden" data-slot="0">切断</button>
+          </div>
+        </div>
+      </div>
+      <div class="slot-comments">
+        <div class="slot-comments-header">
+          <span>コメント</span>
+          <span class="slot-comment-count">0</span>
+        </div>
+        <div class="slot-comment-list" data-slot="0">
+          <p class="empty-msg">接続するとコメントが表示されます</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- スロット2 -->
+    <div class="slot-column" data-slot="1">
+      <div class="slot-card">
+        <div class="slot-header">
+          <span class="slot-number">2</span>
+          <span class="slot-status-dot disconnected"></span>
+          <span class="slot-hype" title="盛り上がり度">--</span>
+          <span class="slot-viewers"></span>
+        </div>
+        <div class="slot-body">
+          <div class="slot-info">
+            <span class="slot-username inactive">未接続</span>
+          </div>
+          <div class="slot-connect-form">
+            <input type="text" class="slot-input" placeholder="@username" data-slot="1">
+            <button class="btn btn-slot-connect" data-slot="1">接続</button>
+            <button class="btn btn-slot-disconnect hidden" data-slot="1">切断</button>
+          </div>
+        </div>
+      </div>
+      <div class="slot-comments">
+        <div class="slot-comments-header">
+          <span>コメント</span>
+          <span class="slot-comment-count">0</span>
+        </div>
+        <div class="slot-comment-list" data-slot="1">
+          <p class="empty-msg">接続するとコメントが表示されます</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- スロット3 -->
+    <div class="slot-column" data-slot="2">
+      <div class="slot-card">
+        <div class="slot-header">
+          <span class="slot-number">3</span>
+          <span class="slot-status-dot disconnected"></span>
+          <span class="slot-hype" title="盛り上がり度">--</span>
+          <span class="slot-viewers"></span>
+        </div>
+        <div class="slot-body">
+          <div class="slot-info">
+            <span class="slot-username inactive">未接続</span>
+          </div>
+          <div class="slot-connect-form">
+            <input type="text" class="slot-input" placeholder="@username" data-slot="2">
+            <button class="btn btn-slot-connect" data-slot="2">接続</button>
+            <button class="btn btn-slot-disconnect hidden" data-slot="2">切断</button>
+          </div>
+        </div>
+      </div>
+      <div class="slot-comments">
+        <div class="slot-comments-header">
+          <span>コメント</span>
+          <span class="slot-comment-count">0</span>
+        </div>
+        <div class="slot-comment-list" data-slot="2">
+          <p class="empty-msg">接続するとコメントが表示されます</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- スロット4 -->
+    <div class="slot-column" data-slot="3">
+      <div class="slot-card">
+        <div class="slot-header">
+          <span class="slot-number">4</span>
+          <span class="slot-status-dot disconnected"></span>
+          <span class="slot-hype" title="盛り上がり度">--</span>
+          <span class="slot-viewers"></span>
+        </div>
+        <div class="slot-body">
+          <div class="slot-info">
+            <span class="slot-username inactive">未接続</span>
+          </div>
+          <div class="slot-connect-form">
+            <input type="text" class="slot-input" placeholder="@username" data-slot="3">
+            <button class="btn btn-slot-connect" data-slot="3">接続</button>
+            <button class="btn btn-slot-disconnect hidden" data-slot="3">切断</button>
+          </div>
+        </div>
+      </div>
+      <div class="slot-comments">
+        <div class="slot-comments-header">
+          <span>コメント</span>
+          <span class="slot-comment-count">0</span>
+        </div>
+        <div class="slot-comment-list" data-slot="3">
+          <p class="empty-msg">接続するとコメントが表示されます</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- スロット5 -->
+    <div class="slot-column" data-slot="4">
+      <div class="slot-card">
+        <div class="slot-header">
+          <span class="slot-number">5</span>
+          <span class="slot-status-dot disconnected"></span>
+          <span class="slot-hype" title="盛り上がり度">--</span>
+          <span class="slot-viewers"></span>
+        </div>
+        <div class="slot-body">
+          <div class="slot-info">
+            <span class="slot-username inactive">未接続</span>
+          </div>
+          <div class="slot-connect-form">
+            <input type="text" class="slot-input" placeholder="@username" data-slot="4">
+            <button class="btn btn-slot-connect" data-slot="4">接続</button>
+            <button class="btn btn-slot-disconnect hidden" data-slot="4">切断</button>
+          </div>
+        </div>
+      </div>
+      <div class="slot-comments">
+        <div class="slot-comments-header">
+          <span>コメント</span>
+          <span class="slot-comment-count">0</span>
+        </div>
+        <div class="slot-comment-list" data-slot="4">
+          <p class="empty-msg">接続するとコメントが表示されます</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== 下部: AI提案 + テンプレート ===== -->
+  <div class="bottom-bar">
+    <div class="suggestions-panel">
+      <h3>💡 AI提案</h3>
+      <div class="suggestions-list" id="suggestions-list">
+        <p class="empty-msg" style="font-size:0.8rem">コメントが届くとAI提案が表示されます</p>
+      </div>
+    </div>
+    <div class="template-panel">
+      <h3>📋 テンプレート</h3>
+      <div class="template-categories" id="template-categories">
+        <button class="cat-btn active" data-cat="all">全て</button>
+        <button class="cat-btn" data-cat="挨拶">挨拶</button>
+        <button class="cat-btn" data-cat="感謝">感謝</button>
+        <button class="cat-btn" data-cat="応答">応答</button>
+        <button class="cat-btn" data-cat="盛り上げ">盛上</button>
+        <button class="cat-btn" data-cat="終了">終了</button>
+      </div>
+      <div class="template-list" id="template-list"></div>
+      <div class="template-add">
+        <input type="text" id="template-input" placeholder="テンプレート追加...">
+        <button id="template-add-btn">+</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/dashboard.js"></script>
+</body>
+</html>
