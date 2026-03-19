@@ -12,6 +12,8 @@ let slotData = Array.from({ length: 5 }, () => ({
 }));
 let currentCategory = 'all';
 let uniqueUsers = new Set();
+let sendMode = 'auto'; // 'auto' or 'manual'
+const pendingSend = Array.from({ length: 5 }, () => null);
 
 // ============ DOM ============
 const $ = id => document.getElementById(id);
@@ -53,6 +55,34 @@ socket.on('slot-error', (data) => {
   showToast(`スロット${data.slotId + 1}: ${data.error}`, true);
 });
 
+socket.on('device-status', ({ slotId, connected, serial }) => {
+  const col = document.querySelector(`.slot-column[data-slot="${slotId}"]`);
+  if (!col) return;
+  const dot = col.querySelector('.slot-status-dot');
+  if (dot) dot.title = connected ? `📱 ${serial}` : '';
+  showToast(
+    connected
+      ? `📱 スロット${slotId + 1}にスマホ接続`
+      : `⚠️ スロット${slotId + 1}のスマホ切断`,
+    !connected
+  );
+});
+
+socket.on('system-toast', ({ message }) => showToast(message));
+
+socket.on('comment-ready', ({ text, slotId }) => {
+  pendingSend[slotId] = text;
+  showSendButton(slotId, text);
+});
+
+socket.on('comment-posted', ({ slotId }) => {
+  hideSendButton(slotId);
+  if (slotId !== undefined) {
+    pendingSend[slotId] = null;
+    showToast(`✅ スロット${slotId + 1} 送信完了`);
+  }
+});
+
 socket.on('new-comment', ({ comment, suggestions }) => {
   comments.push({ ...comment, suggestions });
   uniqueUsers.add(comment.userId);
@@ -87,6 +117,25 @@ socket.on('new-member', (member) => {
 
 socket.on('new-like', (data) => {
   // いいねは頻度が高いので表示しない
+});
+
+socket.on('hype-update', ({ slotId, score, level }) => {
+  const col = document.querySelector(`.slot-column[data-slot="${slotId}"]`);
+  if (!col) return;
+  const el = col.querySelector('.slot-hype');
+  if (!el) return;
+  const icons = { high: '🔥', medium: '⚡', low: '💤' };
+  el.textContent = icons[level] || '--';
+  el.title = `盛り上がりスコア: ${score}`;
+  el.setAttribute('data-level', level);
+});
+
+socket.on('auto-suggestions', ({ slotId, suggestions, hype }) => {
+  if (suggestions && suggestions.length > 0) {
+    const dummyComment = { slotId };
+    appendSuggestions(dummyComment, suggestions);
+    showToast(`スロット${slotId + 1}: 自動提案が届きました`);
+  }
 });
 
 // OllamaからのAI提案（遅延配信）
@@ -167,6 +216,29 @@ function updateAllCommentCounts() {
   for (let i = 0; i < 5; i++) updateCommentCount(i);
 }
 
+function showSendButton(slotId, text) {
+  hideSendButton(slotId);
+  const col = document.querySelector(`.slot-column[data-slot="${slotId}"]`);
+  if (!col) return;
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-send-now';
+  btn.dataset.slot = slotId;
+  const short = (text || '').slice(0, 15);
+  const suffix = (text && text.length > 15) ? '...' : '';
+  btn.innerHTML = `📤 送信: ${escapeHtml(short)}${suffix}`;
+  btn.addEventListener('click', () => {
+    socket.emit('send-comment', { slotId: parseInt(slotId) });
+    btn.disabled = true;
+    btn.textContent = '送信中...';
+  });
+  col.querySelector('.slot-card').appendChild(btn);
+}
+
+function hideSendButton(slotId) {
+  const col = document.querySelector(`.slot-column[data-slot="${slotId}"]`);
+  if (col) col.querySelector('.btn-send-now')?.remove();
+}
+
 function updateStats() {
   $('stat-total').textContent = comments.length;
   $('stat-users').textContent = uniqueUsers.size;
@@ -222,7 +294,17 @@ function appendCommentToSlot(comment, suggestions, scroll) {
 
   div.querySelectorAll('.suggestion-chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      copyToClipboard(chip.dataset.text);
+      if (sendMode === 'auto') {
+        socket.emit('post-comment-auto', {
+          text: chip.dataset.text,
+          slotId: comment.slotId
+        });
+      } else {
+        socket.emit('input-comment', {
+          text: chip.dataset.text,
+          slotId: comment.slotId
+        });
+      }
       chip.classList.add('copied');
       setTimeout(() => chip.remove(), 500);
     });
@@ -233,7 +315,7 @@ function appendCommentToSlot(comment, suggestions, scroll) {
   // 最大100件に制限
   while (list.children.length > 100) list.removeChild(list.firstChild);
 
-  if (scroll) list.scrollTop = list.scrollHeight;
+  if (scroll && list.dataset.paused !== 'true') list.scrollTop = list.scrollHeight;
 }
 
 function appendTranscriptionToSlot(slotId, text) {
@@ -289,9 +371,13 @@ function appendSuggestions(comment, suggestions) {
     `;
     div.appendChild(timerSpan);
 
-    // タップで即コピー
+    // クリックで送信/入力（モードに応じて振り分け）
     div.addEventListener('click', () => {
-      copyToClipboard(s.text);
+      if (sendMode === 'auto') {
+        socket.emit('post-comment-auto', { text: s.text, slotId: comment.slotId });
+      } else {
+        socket.emit('input-comment', { text: s.text, slotId: comment.slotId });
+      }
       div.classList.add('copied');
       setTimeout(() => div.remove(), 600);
     });
@@ -328,8 +414,27 @@ function renderTemplates() {
   filtered.forEach(t => {
     const div = document.createElement('div');
     div.className = 'template-item';
-    div.textContent = t.text;
-    div.addEventListener('click', () => copyToClipboard(t.text));
+
+    const textSpan = document.createElement('span');
+    textSpan.textContent = t.text;
+    textSpan.addEventListener('click', () => copyToClipboard(t.text));
+    div.appendChild(textSpan);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'template-delete';
+    delBtn.textContent = '\u2715';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fetch(`/api/templates/${t.id}`, { method: 'DELETE' }).then(r => {
+        if (r.ok) {
+          templates = templates.filter(x => x.id !== t.id);
+          renderTemplates();
+          showToast('削除しました');
+        }
+      });
+    });
+    div.appendChild(delBtn);
+
     templateList.appendChild(div);
   });
 }
@@ -363,6 +468,14 @@ document.querySelectorAll('.slot-input').forEach(input => {
   });
 });
 
+// コメント欄の自動スクロール一時停止
+document.querySelectorAll('.slot-comment-list').forEach(list => {
+  list.addEventListener('scroll', () => {
+    const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 30;
+    list.dataset.paused = atBottom ? 'false' : 'true';
+  });
+});
+
 // 全履歴クリア
 $('clear-btn').addEventListener('click', () => socket.emit('clear-comments'));
 
@@ -375,6 +488,26 @@ document.querySelectorAll('.cat-btn').forEach(btn => {
     renderTemplates();
   });
 });
+
+// 送信モード切り替え
+{
+  const modeAuto = $('mode-auto');
+  const modeManual = $('mode-manual');
+  if (modeAuto && modeManual) {
+    modeAuto.addEventListener('click', () => {
+      sendMode = 'auto';
+      modeAuto.classList.add('active');
+      modeManual.classList.remove('active');
+      showToast('1クリック自動送信モード');
+    });
+    modeManual.addEventListener('click', () => {
+      sendMode = 'manual';
+      modeManual.classList.add('active');
+      modeAuto.classList.remove('active');
+      showToast('2クリック確認送信モード');
+    });
+  }
+}
 
 // テンプレート追加
 $('template-add-btn').addEventListener('click', () => {

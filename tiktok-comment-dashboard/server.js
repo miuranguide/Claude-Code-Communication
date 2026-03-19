@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const WebSocket = require('ws');
+const { exec, execSync } = require('child_process');
 
 const app = express();
 
@@ -44,6 +45,112 @@ function addToContext(slotId, type, text) {
   if (slotContexts[slotId].length > MAX_CONTEXT) {
     slotContexts[slotId].shift();
   }
+}
+
+// ============================================================
+//  ADB デバイス管理
+// ============================================================
+const deviceSlotMap = {};
+
+function getConnectedDevices() {
+  try {
+    const output = execSync('adb devices', { encoding: 'utf-8' });
+    return output.split('\n').slice(1)
+      .filter(l => l.includes('\tdevice'))
+      .map(l => l.split('\t')[0].trim());
+  } catch (e) { return []; }
+}
+
+function syncDevices() {
+  const connected = getConnectedDevices();
+  for (const serial of Object.keys(deviceSlotMap)) {
+    if (!connected.includes(serial)) {
+      const slotId = deviceSlotMap[serial];
+      delete deviceSlotMap[serial];
+      io.emit('device-status', { slotId, connected: false, serial: '' });
+    }
+  }
+  for (const serial of connected) {
+    if (!deviceSlotMap.hasOwnProperty(serial)) {
+      const usedSlots = Object.values(deviceSlotMap);
+      let freeSlot = -1;
+      for (let i = 0; i < MAX_SLOTS; i++) {
+        if (!usedSlots.includes(i)) { freeSlot = i; break; }
+      }
+      if (freeSlot !== -1) {
+        deviceSlotMap[serial] = freeSlot;
+        console.log(`[ADB] 接続: ${serial} → スロット${freeSlot + 1}`);
+        io.emit('device-status', { slotId: freeSlot, connected: true, serial });
+        io.emit('system-toast', { message: `📱 スロット${freeSlot + 1}にスマホ接続` });
+      }
+    }
+  }
+}
+setInterval(syncDevices, 3000);
+
+// ランダム整数（min〜max）
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// ランダム待機（ms）
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ADB設定（後からSocket.IOで変更可能）
+let adbConfig = {
+  tapOffsetPx: 10,      // タップ座標ランダム幅（±px）
+  waitMin: 1000,        // 送信前待機 最短ms
+  waitMax: 3000,        // 送信前待機 最長ms
+  tapSpeedMin: 50,      // タップ速度 最短ms
+  tapSpeedMax: 150,     // タップ速度 最長ms
+  commentX: 360,       // コメント欄のX座標（基準値）
+  commentY: 1400,       // コメント欄のY座標（基準値）
+};
+
+// コメントをテキスト入力（送信なし）
+async function adbInputComment(serial, text) {
+  const offsetX = randInt(-adbConfig.tapOffsetPx, adbConfig.tapOffsetPx);
+  const offsetY = randInt(-adbConfig.tapOffsetPx, adbConfig.tapOffsetPx);
+  const tapX = adbConfig.commentX + offsetX;
+  const tapY = adbConfig.commentY + offsetY;
+  const escaped = text.replace(/"/g, '\\"');
+
+  const tapSpeed = randInt(adbConfig.tapSpeedMin, adbConfig.tapSpeedMax); // ms
+
+  const cmds = [
+    `adb -s ${serial} shell input tap ${tapX} ${tapY}`,
+    `sleep ${tapSpeed / 1000}`,
+    `adb -s ${serial} shell input keyevent KEYCODE_CTRL_A`,
+    `adb -s ${serial} shell input keyevent KEYCODE_DEL`,
+    `adb -s ${serial} shell am broadcast -a ADB_INPUT_TEXT --es msg "${escaped}"`,
+  ];
+
+  return new Promise((resolve, reject) => {
+    exec(cmds.join(' && '), { timeout: 10000 }, (error) => {
+      if (error) { reject(error); } else { resolve(); }
+    });
+  });
+}
+
+// 送信（Enterキー）
+async function adbSendComment(serial) {
+  return new Promise((resolve, reject) => {
+    exec(
+      `adb -s ${serial} shell input keyevent KEYCODE_ENTER`,
+      { timeout: 5000 },
+      (error) => { if (error) reject(error); else resolve(); }
+    );
+  });
+}
+
+// 入力→ランダム待機→送信（1クリックモード用）
+async function adbInputAndSend(serial, text) {
+  await adbInputComment(serial, text);
+  const wait = randInt(adbConfig.waitMin, adbConfig.waitMax);
+  await sleep(wait);
+  await adbSendComment(serial);
 }
 
 function buildPrompt(slotId, latestComment) {
@@ -617,6 +724,68 @@ io.on('connection', (socket) => {
   socket.on('update-templates', (templates) => {
     saveTemplates(templates);
     socket.broadcast.emit('templates-updated', templates);
+  });
+
+  // デバイス一覧取得
+  socket.on('get-devices', () => {
+    socket.emit('device-map', deviceSlotMap);
+  });
+
+  // ADB設定変更
+  socket.on('update-adb-config', (config) => {
+    adbConfig = { ...adbConfig, ...config };
+    console.log('[ADB] 設定更新:', adbConfig);
+  });
+
+  // 1クリックモード: 入力→自動送信
+  socket.on('post-comment-auto', async ({ text, slotId }) => {
+    const serial = Object.keys(deviceSlotMap)
+      .find(s => deviceSlotMap[s] === slotId);
+    if (!serial) {
+      socket.emit('slot-error', {
+        slotId,
+        error: `スロット${slotId + 1}にスマホが未接続`
+      });
+      return;
+    }
+    try {
+      await adbInputAndSend(serial, text.trim());
+      io.emit('comment-posted', { text, slotId, timestamp: Date.now() });
+    } catch (err) {
+      socket.emit('slot-error', { slotId, error: `投稿失敗: ${err.message}` });
+    }
+  });
+
+  // 2クリックモード: 入力のみ
+  socket.on('input-comment', async ({ text, slotId }) => {
+    const serial = Object.keys(deviceSlotMap)
+      .find(s => deviceSlotMap[s] === slotId);
+    if (!serial) {
+      socket.emit('slot-error', {
+        slotId,
+        error: `スロット${slotId + 1}にスマホが未接続`
+      });
+      return;
+    }
+    try {
+      await adbInputComment(serial, text.trim());
+      socket.emit('comment-ready', { text, slotId });
+    } catch (err) {
+      socket.emit('slot-error', { slotId, error: `入力失敗: ${err.message}` });
+    }
+  });
+
+  // 2クリックモード: 送信のみ
+  socket.on('send-comment', async ({ slotId }) => {
+    const serial = Object.keys(deviceSlotMap)
+      .find(s => deviceSlotMap[s] === slotId);
+    if (!serial) return;
+    try {
+      await adbSendComment(serial);
+      io.emit('comment-posted', { slotId, timestamp: Date.now() });
+    } catch (err) {
+      socket.emit('slot-error', { slotId, error: `送信失敗: ${err.message}` });
+    }
   });
 
   // コメント履歴クリア

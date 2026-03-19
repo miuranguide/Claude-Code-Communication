@@ -17,6 +17,11 @@
       <span>総コメント: <span class="stat-val" id="stat-total">0</span></span>
       <span>ユーザー: <span class="stat-val" id="stat-users">0</span></span>
       <span>/分: <span class="stat-val" id="stat-cpm">0</span></span>
+      <div class="send-mode-toggle">
+        <span class="mode-label">送信モード：</span>
+        <button class="mode-btn active" id="mode-auto">1クリック自動</button>
+        <button class="mode-btn" id="mode-manual">2クリック確認</button>
+      </div>
       <button class="btn btn-clear" id="clear-btn">全履歴クリア</button>
     </div>
   </header>
@@ -194,10 +199,10 @@
       <div class="template-categories" id="template-categories">
         <button class="cat-btn active" data-cat="all">全て</button>
         <button class="cat-btn" data-cat="挨拶">挨拶</button>
-        <button class="cat-btn" data-cat="感謝">感謝</button>
-        <button class="cat-btn" data-cat="応答">応答</button>
+        <button class="cat-btn" data-cat="リアクション">リアクション</button>
         <button class="cat-btn" data-cat="盛り上げ">盛上</button>
-        <button class="cat-btn" data-cat="終了">終了</button>
+        <button class="cat-btn" data-cat="質問">質問</button>
+        <button class="cat-btn" data-cat="応援">応援</button>
       </div>
       <div class="template-list" id="template-list"></div>
       <div class="template-add">
